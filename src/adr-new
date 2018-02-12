@@ -4,7 +4,7 @@ eval "$($(dirname $0)/adr-config)"
 
 ## usage: adr new [-s SUPERCEDED] [-l TARGET:LINK:REVERSE-LINK] TITLE_TEXT...
 ##
-## Creates a new, numbered ADR.  The TITLE_TEXT arguments are concatenated to
+## Creates a new, draft ADR.  The TITLE_TEXT arguments are concatenated to
 ## form the title of the new ADR.  The ADR is opened for editing in the
 ## editor specified by the VISUAL or EDITOR environment variable (VISUAL is
 ## preferred; EDITOR is used if VISUAL is not set).  After editing, the
@@ -93,13 +93,15 @@ fi
 
 if [ -d $dstdir ]
 then
-    maxid=$(ls $dstdir | grep -Eo '^[0-9]+' | sed -e 's/^0*//' | sort -rn | head -1)
-    newnum=$(($maxid + 1))
-else
-    newnum=1
+    # if there is a DRAFT, show it. if there isn't, don't show an error, we want there to be 0 DRAFT ADRs.
+    if ls -l "$dstdir"/DRAFT-* 2>/dev/null; then
+        echo error: A DRAFT already exists.
+        exit 1
+    fi
 fi
 
-newid=$(printf "%04d" $newnum)
+newnum=DRAFT
+newid=DRAFT
 slug=$(echo -n $title | tr -Ccs [:alnum:] - | tr [:upper:] [:lower:] | sed -e 's/[^[:alnum:]]*$//' -e 's/^[^[:alnum:]]*//')
 dstfile=$dstdir/$newid-$slug.md
 date=${ADR_DATE:-$(date +%Y-%m-%d)}
@@ -109,7 +111,7 @@ cat $template | sed \
     -e "s|NUMBER|$newnum|" \
     -e "s|TITLE|$title|" \
     -e "s|DATE|$date|" \
-    -e "s|STATUS|Accepted|" \
+    -e "s|STATUS|Draft|" \
     > $dstfile
 
 for target in "${superceded[@]}"

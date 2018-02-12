@@ -1,0 +1,40 @@
+#!/bin/bash
+set -e
+eval "$($(dirname $0)/adr-config)"
+
+## usage: adr accept path/to/DRAFT-....md
+##
+## Sets a number for the given draft and changes its status to "Accepted".
+## The next step after running this should be to commit the ADR to your ADR
+## repository.
+##
+## If you're using Git, this script will attempt to merge origin/master to
+## the current branch before setting a number.
+
+if [ ! -f "$1" ]; then
+  if [ -n "$1" ]; then
+    echo "$1": file not found
+  fi
+  cat "$0" | grep ^## | cut -c4-
+  exit 1
+fi
+
+if git rev-parse --git-dir >&/dev/null; then
+  git fetch -q origin
+  git merge -q origin/master
+fi
+
+dstdir=$("$adr_bin_dir/_adr_dir")
+if [ "$dstdir" != "$(dirname "$1")" ]; then
+  echo error: you are trying to approve a draft that is not in $dstdir
+  exit 1
+fi
+
+maxid=$(ls $dstdir | grep -Eo '^[0-9]+' | sed -e 's/^0*//' | sort -rn | head -1)
+newnum=$(($maxid + 1))
+newid=$(printf "%04d" $newnum)
+dstfile=$dstdir/$(basename "$1" | sed -e s/DRAFT-/$newid-/)
+cat "$1" | sed \
+  -e "s|^DRAFT\\.|$newnum.|" \
+  -e "s|^Draft$|Accepted|" \
+  > $dstfile
